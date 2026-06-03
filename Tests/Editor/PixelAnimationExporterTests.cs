@@ -304,6 +304,51 @@ namespace AnimToPixel.Editor.Tests
         }
 
         [Test]
+        public async Task ExportAsync_SerializesConcurrentRenderOperations()
+        {
+            var prefab = CreateCubePrefab();
+            var clip = CreateAnimationClip();
+            var events = new List<string>();
+            var first = new PixelAnimationExportSettings
+            {
+                Prefab = prefab,
+                AnimationClip = clip,
+                OutputFolderPath = $"{TempRoot}/ConcurrentA",
+                Resolution = new Vector2Int(32, 32),
+                Fps = 4,
+                TransparentBackground = true
+            };
+            var second = new PixelAnimationExportSettings
+            {
+                Prefab = prefab,
+                AnimationClip = clip,
+                OutputFolderPath = $"{TempRoot}/ConcurrentB",
+                Resolution = new Vector2Int(32, 32),
+                Fps = 4,
+                TransparentBackground = true
+            };
+
+            var firstTask = PixelAnimationExporter.ExportAsync(first, (_, __) =>
+            {
+                events.Add("A");
+                return true;
+            });
+            var secondTask = PixelAnimationExporter.ExportAsync(second, (_, __) =>
+            {
+                events.Add("B");
+                return true;
+            });
+
+            await Task.WhenAll(firstTask, secondTask);
+
+            Assert.That(events, Is.Not.Empty);
+            var transitions = events.Zip(events.Skip(1), (left, right) => left == right ? 0 : 1).Sum();
+            Assert.That(transitions, Is.LessThanOrEqualTo(1));
+            Assert.That(firstTask.Result.GeneratedFiles, Has.Count.EqualTo(4));
+            Assert.That(secondTask.Result.GeneratedFiles, Has.Count.EqualTo(4));
+        }
+
+        [Test]
         public void GifWriter_DoesNotFlipFrameVertically()
         {
             var texture = new Texture2D(1, 2, TextureFormat.RGBA32, false);

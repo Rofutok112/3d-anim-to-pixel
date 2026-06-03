@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
@@ -14,8 +15,15 @@ namespace AnimToPixel.Editor
         private const int MaxResolution = 2048;
         private const int ExportLayer = 31;
         private const int ExportLayerMask = 1 << ExportLayer;
+        private static readonly SemaphoreSlim RenderSemaphore = new SemaphoreSlim(1, 1);
 
         public static PixelAnimationExportResult Export(PixelAnimationExportSettings settings)
+        {
+            using var renderLock = EnterRenderOperation();
+            return ExportInternal(settings);
+        }
+
+        private static PixelAnimationExportResult ExportInternal(PixelAnimationExportSettings settings)
         {
             Validate(settings);
 
@@ -47,6 +55,7 @@ namespace AnimToPixel.Editor
             PixelAnimationExportSettings settings,
             Func<float, string, bool> progress)
         {
+            using var renderLock = await EnterRenderOperationAsync();
             Validate(settings);
 
             var generatedFiles = new List<string>();
@@ -92,6 +101,7 @@ namespace AnimToPixel.Editor
 
         public static Texture2D RenderPreview(PixelAnimationExportSettings settings, int frameIndex)
         {
+            using var renderLock = EnterRenderOperation();
             Validate(settings);
             var yaw = GetDirectionYaws(settings)[0];
             var outputFrameIndex = Mathf.Clamp(frameIndex, 0, settings.FrameCount - 1);
@@ -180,6 +190,22 @@ namespace AnimToPixel.Editor
             {
                 throw new ArgumentException("Shade Steps must be 0, or between 2 and 32.", nameof(settings));
             }
+        }
+
+        private static IDisposable EnterRenderOperation()
+        {
+            if (!RenderSemaphore.Wait(0))
+            {
+                throw new InvalidOperationException("Another 3D Anim To Pixel render/export is already running. Wait for it to finish before starting another one.");
+            }
+
+            return new RenderOperationLock();
+        }
+
+        private static async Task<IDisposable> EnterRenderOperationAsync()
+        {
+            await RenderSemaphore.WaitAsync();
+            return new RenderOperationLock();
         }
 
         private static CapturedFrameSet CaptureFrames(PixelAnimationExportSettings settings, float yaw, int startFrame = 0, int? limit = null)
@@ -1553,6 +1579,22 @@ namespace AnimToPixel.Editor
                 {
                     DestroyImmediateSafe(frame);
                 }
+            }
+        }
+
+        private sealed class RenderOperationLock : IDisposable
+        {
+            private bool disposed;
+
+            public void Dispose()
+            {
+                if (disposed)
+                {
+                    return;
+                }
+
+                disposed = true;
+                RenderSemaphore.Release();
             }
         }
 

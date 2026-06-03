@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Serialize concurrent render/export operations in one Unity Editor process to avoid temporary camera, layer, and render target interference.
+
 ## 0.1.2
 
 - Allow CLI JSON enum fields to use documented string names such as `"Both"` and `"Pico8"`.

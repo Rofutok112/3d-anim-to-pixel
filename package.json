@@ -1,6 +1,6 @@
 {
   "name": "com.rento.anim-to-pixel",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "displayName": "3D Anim To Pixel",
   "description": "Unity Editor tools for rendering prefab animation clips as pixel-art PNG sequences, sprite sheets, and GIFs.",
   "unity": "6000.0",
