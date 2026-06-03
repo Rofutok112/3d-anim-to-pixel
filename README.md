@@ -7,13 +7,7 @@ Unity Editor tool for converting a prefab and animation clip into pixel-art-styl
 In Unity, open **Window > Package Manager**, press **+**, choose **Install package from git URL...**, and enter:
 
 ```text
-https://github.com/OWNER/REPOSITORY.git?path=/Packages/com.rento.anim-to-pixel
-```
-
-If the repository root contains this package directly, use:
-
-```text
-https://github.com/OWNER/REPOSITORY.git
+https://github.com/Rofutok112/3d-anim-to-pixel.git
 ```
 
 ## Usage
@@ -50,4 +44,3 @@ To make package tests visible in a Unity project, add this to the project's `Pac
   ]
 }
 ```
-
