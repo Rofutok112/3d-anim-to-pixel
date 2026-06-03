@@ -221,11 +221,13 @@ namespace AnimToPixel.Editor
             Light light = null;
             RenderTexture renderTexture = null;
             Texture2D readTexture = null;
+            SkinnedMeshBakeProxy[] bakeProxies = null;
             var previousActive = RenderTexture.active;
 
             try
             {
                 ApplyMaterialPreset(instance, settings);
+                bakeProxies = CreateSkinnedMeshBakeProxies(instance);
                 camera = CreateCamera(settings);
                 light = CreateLight(settings);
 
@@ -242,6 +244,7 @@ namespace AnimToPixel.Editor
                     var frameIndex = startFrame + offset;
                     var sourceFrameIndex = GetSourceFrameForOutputFrame(settings, frameIndex);
                     settings.AnimationClip.SampleAnimation(instance, GetFrameTime(settings, sourceFrameIndex, settings.BaseFrameCount));
+                    UpdateSkinnedMeshBakeProxies(bakeProxies);
                     SnapInstanceToPixelGrid(instance, camera, settings);
 
                     camera.Render();
@@ -268,6 +271,7 @@ namespace AnimToPixel.Editor
                 DestroyImmediateSafe(renderTexture);
                 DestroyImmediateSafe(light != null ? light.gameObject : null);
                 DestroyImmediateSafe(camera != null ? camera.gameObject : null);
+                DestroySkinnedMeshBakeProxies(bakeProxies);
                 DestroyImmediateSafe(instance);
             }
 
@@ -293,11 +297,13 @@ namespace AnimToPixel.Editor
             Light light = null;
             RenderTexture renderTexture = null;
             Texture2D readTexture = null;
+            SkinnedMeshBakeProxy[] bakeProxies = null;
             var previousActive = RenderTexture.active;
 
             try
             {
                 ApplyMaterialPreset(instance, settings);
+                bakeProxies = CreateSkinnedMeshBakeProxies(instance);
                 camera = CreateCamera(settings);
                 light = CreateLight(settings);
 
@@ -313,6 +319,7 @@ namespace AnimToPixel.Editor
                     var frameIndex = startFrame + offset;
                     var sourceFrameIndex = GetSourceFrameForOutputFrame(settings, frameIndex);
                     settings.AnimationClip.SampleAnimation(instance, GetFrameTime(settings, sourceFrameIndex, settings.BaseFrameCount));
+                    UpdateSkinnedMeshBakeProxies(bakeProxies);
                     SnapInstanceToPixelGrid(instance, camera, settings);
 
                     camera.Render();
@@ -341,6 +348,7 @@ namespace AnimToPixel.Editor
                 DestroyImmediateSafe(renderTexture);
                 DestroyImmediateSafe(light != null ? light.gameObject : null);
                 DestroyImmediateSafe(camera != null ? camera.gameObject : null);
+                DestroySkinnedMeshBakeProxies(bakeProxies);
                 DestroyImmediateSafe(instance);
             }
 
@@ -1410,26 +1418,81 @@ namespace AnimToPixel.Editor
             var frameCount = settings.SampleFrameCount;
             var hasBounds = false;
             var bounds = new Bounds(instance.transform.position, Vector3.one);
+            var bakeProxies = CreateSkinnedMeshBakeProxies(instance);
 
-            for (var frameIndex = 0; frameIndex < frameCount; frameIndex++)
+            try
             {
-                var sourceFrameIndex = GetSourceFrameForOutputFrame(settings, frameIndex * Mathf.Max(1, settings.FrameHold));
-                settings.AnimationClip.SampleAnimation(instance, GetFrameTime(settings, sourceFrameIndex, settings.BaseFrameCount));
-                if (TryGetRendererBounds(instance, out var frameBounds))
+                for (var frameIndex = 0; frameIndex < frameCount; frameIndex++)
                 {
-                    if (!hasBounds)
+                    var sourceFrameIndex = GetSourceFrameForOutputFrame(settings, frameIndex * Mathf.Max(1, settings.FrameHold));
+                    settings.AnimationClip.SampleAnimation(instance, GetFrameTime(settings, sourceFrameIndex, settings.BaseFrameCount));
+                    UpdateSkinnedMeshBakeProxies(bakeProxies);
+                    if (TryGetRendererBounds(instance, out var frameBounds))
                     {
-                        bounds = frameBounds;
-                        hasBounds = true;
-                    }
-                    else
-                    {
-                        bounds.Encapsulate(frameBounds);
+                        if (!hasBounds)
+                        {
+                            bounds = frameBounds;
+                            hasBounds = true;
+                        }
+                        else
+                        {
+                            bounds.Encapsulate(frameBounds);
+                        }
                     }
                 }
             }
+            finally
+            {
+                DestroySkinnedMeshBakeProxies(bakeProxies);
+            }
 
             return hasBounds ? bounds : new Bounds(instance.transform.position, Vector3.one);
+        }
+
+        private static SkinnedMeshBakeProxy[] CreateSkinnedMeshBakeProxies(GameObject instance)
+        {
+            var skinnedRenderers = instance
+                .GetComponentsInChildren<SkinnedMeshRenderer>(true)
+                .Where(renderer => renderer != null && renderer.enabled && renderer.sharedMesh != null)
+                .ToArray();
+            if (skinnedRenderers.Length == 0)
+            {
+                return Array.Empty<SkinnedMeshBakeProxy>();
+            }
+
+            var proxies = new SkinnedMeshBakeProxy[skinnedRenderers.Length];
+            for (var index = 0; index < skinnedRenderers.Length; index++)
+            {
+                proxies[index] = new SkinnedMeshBakeProxy(skinnedRenderers[index]);
+            }
+
+            return proxies;
+        }
+
+        private static void UpdateSkinnedMeshBakeProxies(IEnumerable<SkinnedMeshBakeProxy> bakeProxies)
+        {
+            if (bakeProxies == null)
+            {
+                return;
+            }
+
+            foreach (var proxy in bakeProxies)
+            {
+                proxy.Update();
+            }
+        }
+
+        private static void DestroySkinnedMeshBakeProxies(IEnumerable<SkinnedMeshBakeProxy> bakeProxies)
+        {
+            if (bakeProxies == null)
+            {
+                return;
+            }
+
+            foreach (var proxy in bakeProxies)
+            {
+                proxy.Dispose();
+            }
         }
 
         private static bool TryGetRendererBounds(GameObject target, out Bounds bounds)
@@ -1595,6 +1658,65 @@ namespace AnimToPixel.Editor
 
                 disposed = true;
                 RenderSemaphore.Release();
+            }
+        }
+
+        private sealed class SkinnedMeshBakeProxy : IDisposable
+        {
+            private readonly SkinnedMeshRenderer source;
+            private readonly bool originalEnabled;
+            private readonly Mesh bakedMesh;
+            private readonly GameObject proxyObject;
+
+            public SkinnedMeshBakeProxy(SkinnedMeshRenderer source)
+            {
+                this.source = source;
+                originalEnabled = source.enabled;
+                bakedMesh = new Mesh
+                {
+                    name = $"{source.name} Baked Mesh",
+                    hideFlags = HideFlags.HideAndDontSave
+                };
+                proxyObject = new GameObject($"{source.name} Baked Proxy")
+                {
+                    hideFlags = HideFlags.HideAndDontSave,
+                    layer = source.gameObject.layer
+                };
+                proxyObject.transform.SetParent(source.transform.parent, false);
+
+                var meshFilter = proxyObject.AddComponent<MeshFilter>();
+                meshFilter.sharedMesh = bakedMesh;
+                var meshRenderer = proxyObject.AddComponent<MeshRenderer>();
+                meshRenderer.sharedMaterials = source.sharedMaterials;
+                meshRenderer.shadowCastingMode = source.shadowCastingMode;
+                meshRenderer.receiveShadows = source.receiveShadows;
+                meshRenderer.lightProbeUsage = source.lightProbeUsage;
+                meshRenderer.reflectionProbeUsage = source.reflectionProbeUsage;
+                source.enabled = false;
+            }
+
+            public void Update()
+            {
+                if (source == null || proxyObject == null)
+                {
+                    return;
+                }
+
+                source.BakeMesh(bakedMesh);
+                proxyObject.transform.localPosition = source.transform.localPosition;
+                proxyObject.transform.localRotation = source.transform.localRotation;
+                proxyObject.transform.localScale = source.transform.localScale;
+            }
+
+            public void Dispose()
+            {
+                if (source != null)
+                {
+                    source.enabled = originalEnabled;
+                }
+
+                DestroyImmediateSafe(proxyObject);
+                DestroyImmediateSafe(bakedMesh);
             }
         }
 

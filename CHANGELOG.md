@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- Render skinned meshes through per-frame baked mesh proxies so automated exports capture evaluated Humanoid/skinned poses reliably.
+
 ## 0.1.3
 
 - Serialize concurrent render/export operations in one Unity Editor process to avoid temporary camera, layer, and render target interference.
