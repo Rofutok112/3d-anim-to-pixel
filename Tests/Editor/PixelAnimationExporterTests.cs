@@ -715,6 +715,45 @@ namespace AnimToPixel.Editor.Tests
         }
 
         [Test]
+        public void SkinnedMeshBakeProxy_DoesNotCopySourceScale()
+        {
+            var root = new GameObject("ScaledSkinRoot");
+            var skinnedObject = new GameObject("ScaledSkin");
+            skinnedObject.transform.SetParent(root.transform, false);
+            skinnedObject.transform.localScale = new Vector3(0.01f, 0.01f, 0.01f);
+            var skinned = skinnedObject.AddComponent<SkinnedMeshRenderer>();
+            skinned.sharedMesh = CreateQuadMesh();
+            skinned.sharedMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color") ?? Shader.Find("Standard"));
+            Array proxies = null;
+
+            try
+            {
+                proxies = InvokeCreateSkinnedMeshBakeProxies(root);
+                Assert.That(skinned.enabled, Is.False);
+
+                InvokeUpdateSkinnedMeshBakeProxies(proxies);
+                var proxy = Resources.FindObjectsOfTypeAll<GameObject>()
+                    .SingleOrDefault(gameObject => gameObject.name == "ScaledSkin Baked Proxy");
+
+                Assert.That(proxy, Is.Not.Null);
+                Assert.That(proxy.transform.localScale.x, Is.EqualTo(1f));
+                Assert.That(proxy.transform.localScale.y, Is.EqualTo(1f));
+                Assert.That(proxy.transform.localScale.z, Is.EqualTo(1f));
+            }
+            finally
+            {
+                if (proxies != null)
+                {
+                    InvokeDestroySkinnedMeshBakeProxies(proxies);
+                }
+
+                UnityEngine.Object.DestroyImmediate(skinned.sharedMaterial);
+                UnityEngine.Object.DestroyImmediate(skinned.sharedMesh);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void Cli_CreateSettings_LoadsAssetsFromConfig()
         {
             var prefab = CreateCubePrefab();
@@ -1049,6 +1088,24 @@ namespace AnimToPixel.Editor.Tests
             return prefab;
         }
 
+        private static Mesh CreateQuadMesh()
+        {
+            var mesh = new Mesh
+            {
+                name = "Test Quad Mesh"
+            };
+            mesh.vertices = new[]
+            {
+                new Vector3(-0.5f, -0.5f, 0f),
+                new Vector3(0.5f, -0.5f, 0f),
+                new Vector3(-0.5f, 0.5f, 0f),
+                new Vector3(0.5f, 0.5f, 0f)
+            };
+            mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
         private static void InvokeApplyMaterialPreset(GameObject target, PixelAnimationExportSettings settings)
         {
             var method = typeof(PixelAnimationExporter).GetMethod(
@@ -1074,6 +1131,33 @@ namespace AnimToPixel.Editor.Tests
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
             Assert.That(method, Is.Not.Null);
             method.Invoke(null, new object[] { target, layer });
+        }
+
+        private static Array InvokeCreateSkinnedMeshBakeProxies(GameObject target)
+        {
+            var method = typeof(PixelAnimationExporter).GetMethod(
+                "CreateSkinnedMeshBakeProxies",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.That(method, Is.Not.Null);
+            return (Array)method.Invoke(null, new object[] { target });
+        }
+
+        private static void InvokeUpdateSkinnedMeshBakeProxies(Array proxies)
+        {
+            var method = typeof(PixelAnimationExporter).GetMethod(
+                "UpdateSkinnedMeshBakeProxies",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.That(method, Is.Not.Null);
+            method.Invoke(null, new object[] { proxies });
+        }
+
+        private static void InvokeDestroySkinnedMeshBakeProxies(Array proxies)
+        {
+            var method = typeof(PixelAnimationExporter).GetMethod(
+                "DestroySkinnedMeshBakeProxies",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            Assert.That(method, Is.Not.Null);
+            method.Invoke(null, new object[] { proxies });
         }
 
         private static void InvokeNormalizeFrameCanvases(System.Collections.Generic.IList<Texture2D> frames)

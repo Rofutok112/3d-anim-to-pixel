@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5
+
+- Fix baked skinned mesh proxy scaling so models with non-unit SkinnedMeshRenderer scale no longer render too small or transparent.
+- Share the same frame capture session between preview, synchronous export, and asynchronous export paths.
+- Add regression coverage for scaled SkinnedMeshRenderer bake proxies.
+
 ## 0.1.4
 
 - Render skinned meshes through per-frame baked mesh proxies so automated exports capture evaluated Humanoid/skinned poses reliably.
