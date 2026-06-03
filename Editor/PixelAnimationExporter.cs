@@ -454,19 +454,18 @@ namespace AnimToPixel.Editor
         {
             return JsonUtility.ToJson(new Metadata
             {
-                prefab = settings.Prefab.name,
-                clip = settings.AnimationClip.name,
-                width = settings.Resolution.x,
-                height = settings.Resolution.y,
-                fps = settings.Fps,
+                settings = PixelAnimationCli.CreateConfig(settings),
+                prefabName = settings.Prefab.name,
+                animationClipName = settings.AnimationClip.name,
                 frameCount = frameCount,
                 startFrame = GetFirstExportFrame(settings),
                 endFrame = GetSourceFrameForOutputFrame(settings, Mathf.Max(0, frameCount - 1)),
-                outputMode = settings.OutputMode.ToString(),
+                baseFrameCount = settings.BaseFrameCount,
+                rangeFrameCount = settings.RangeFrameCount,
+                sampleFrameCount = settings.SampleFrameCount,
+                effectiveMaxColors = settings.EffectiveMaxColors,
                 directionIndex = directionIndex,
-                cameraYaw = yaw,
-                cameraPitch = settings.CameraPitch,
-                cameraZoom = settings.CameraZoom
+                directionYaw = yaw
             }, true);
         }
 
@@ -1560,19 +1559,18 @@ namespace AnimToPixel.Editor
         [Serializable]
         private sealed class Metadata
         {
-            public string prefab;
-            public string clip;
-            public int width;
-            public int height;
-            public int fps;
+            public PixelAnimationCliConfig settings;
+            public string prefabName;
+            public string animationClipName;
             public int frameCount;
             public int startFrame;
             public int endFrame;
-            public string outputMode;
+            public int baseFrameCount;
+            public int rangeFrameCount;
+            public int sampleFrameCount;
+            public int effectiveMaxColors;
             public int directionIndex;
-            public float cameraYaw;
-            public float cameraPitch;
-            public float cameraZoom;
+            public float directionYaw;
         }
     }
 }

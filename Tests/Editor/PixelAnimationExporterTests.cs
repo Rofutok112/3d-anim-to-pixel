@@ -97,6 +97,7 @@ namespace AnimToPixel.Editor.Tests
                 WriteMetadataJson = true,
                 ApplyOutline = true,
                 ReduceColors = true,
+                ColorCountPreset = PixelColorCountPreset.Custom,
                 MaxColors = 4,
                 UseDithering = true
             };
@@ -108,8 +109,13 @@ namespace AnimToPixel.Editor.Tests
             Assert.That(result.GeneratedFiles, Has.Some.Matches<string>(path => path.EndsWith(".json")));
 
             var metadataPath = result.GeneratedFiles[5];
-            Assert.That(File.ReadAllText(metadataPath), Does.Contain("\"frameCount\": 4"));
-            Assert.That(File.ReadAllText(metadataPath), Does.Contain("\"startFrame\": 0"));
+            var metadataJson = File.ReadAllText(metadataPath);
+            Assert.That(metadataJson, Does.Contain("\"settings\""));
+            Assert.That(metadataJson, Does.Contain("\"applyOutline\": true"));
+            Assert.That(metadataJson, Does.Contain("\"reduceColors\": true"));
+            Assert.That(metadataJson, Does.Contain("\"frameCount\": 4"));
+            Assert.That(metadataJson, Does.Contain("\"startFrame\": 0"));
+            Assert.That(metadataJson, Does.Contain("\"effectiveMaxColors\": 4"));
             Assert.That(File.Exists($"{TempRoot}/Exports/PixelTestCube/Move/Direction_00/Move_0000.png"), Is.True);
             Assert.That(File.Exists($"{TempRoot}/Exports/PixelTestCube/Move/Direction_01/Move_sheet.png"), Is.True);
         }
@@ -692,6 +698,123 @@ namespace AnimToPixel.Editor.Tests
             Assert.That(settings.ShadeSteps, Is.EqualTo(12));
             Assert.That(settings.ForceUnlitMaterials, Is.True);
             Assert.That(settings.PalettePreset, Is.EqualTo(PixelPalettePreset.Pico8));
+        }
+
+        [Test]
+        public void Cli_CreateConfig_ContainsAllExportSettings()
+        {
+            var prefab = CreateCubePrefab();
+            var clip = CreateAnimationClip();
+            AssetDatabase.CreateAsset(clip, $"{TempRoot}/CliRoundTrip.anim");
+            var settings = new PixelAnimationExportSettings
+            {
+                Prefab = prefab,
+                AnimationClip = clip,
+                OutputFolderPath = $"{TempRoot}/AllSettingsExports",
+                Resolution = new Vector2Int(96, 80),
+                Fps = 18,
+                UseFullClipLength = false,
+                DurationSeconds = 2.5f,
+                UseFrameRange = true,
+                StartFrame = 2,
+                EndFrame = 9,
+                BackgroundColor = new Color(0.1f, 0.2f, 0.3f, 0.4f),
+                TransparentBackground = false,
+                CameraYaw = 33f,
+                CameraPitch = -12f,
+                CameraZoom = 2.25f,
+                DirectionYaws = new[] { 0f, 90f, 180f },
+                UseOrthographicCamera = false,
+                UseLighting = false,
+                IncludeShadows = false,
+                ForceUnlitMaterials = true,
+                MaterialPreset = PixelAnimationMaterialPreset.HighContrast,
+                OutputMode = PixelAnimationOutputMode.Both,
+                WriteMetadataJson = true,
+                ApplySpriteImportSettings = false,
+                WriteGifPreview = true,
+                AutoTrim = true,
+                TrimPadding = 3,
+                PixelSnap = false,
+                SnapModelToPixelGrid = true,
+                ApplyOutline = true,
+                OutlineColor = Color.red,
+                OutlineThickness = 2,
+                OutlineMode = PixelOutlineMode.Both,
+                EnhanceEdges = true,
+                EdgeColor = Color.blue,
+                EdgeThreshold = 0.6f,
+                RemoveAntiAliasing = true,
+                AlphaThreshold = 0.7f,
+                ShadeSteps = 24,
+                UseFixedShadeColors = true,
+                ShadowColor = Color.black,
+                MidColor = Color.gray,
+                HighlightColor = Color.white,
+                ReduceColors = true,
+                ColorCountPreset = PixelColorCountPreset.Custom,
+                PalettePreset = PixelPalettePreset.Custom,
+                MaxColors = 7,
+                UseDithering = true,
+                CustomPalette = new[] { Color.black, Color.white },
+                MotionDecimation = 3,
+                FrameHold = 4
+            };
+
+            var config = PixelAnimationCli.CreateConfig(settings);
+
+            Assert.That(config.prefabPath, Is.EqualTo(AssetDatabase.GetAssetPath(prefab)));
+            Assert.That(config.animationClipPath, Is.EqualTo($"{TempRoot}/CliRoundTrip.anim"));
+            Assert.That(config.outputFolderPath, Is.EqualTo(settings.OutputFolderPath));
+            Assert.That(config.resolutionX, Is.EqualTo(96));
+            Assert.That(config.resolutionY, Is.EqualTo(80));
+            Assert.That(config.fps, Is.EqualTo(18));
+            Assert.That(config.useFullClipLength, Is.False);
+            Assert.That(config.durationSeconds, Is.EqualTo(2.5f));
+            Assert.That(config.useFrameRange, Is.True);
+            Assert.That(config.startFrame, Is.EqualTo(2));
+            Assert.That(config.endFrame, Is.EqualTo(9));
+            Assert.That(config.backgroundColor, Is.EqualTo(settings.BackgroundColor));
+            Assert.That(config.transparentBackground, Is.False);
+            Assert.That(config.cameraYaw, Is.EqualTo(33f));
+            Assert.That(config.cameraPitch, Is.EqualTo(-12f));
+            Assert.That(config.cameraZoom, Is.EqualTo(2.25f));
+            Assert.That(config.directionYaws, Is.EqualTo(new[] { 0f, 90f, 180f }));
+            Assert.That(config.useOrthographicCamera, Is.False);
+            Assert.That(config.useLighting, Is.False);
+            Assert.That(config.includeShadows, Is.False);
+            Assert.That(config.forceUnlitMaterials, Is.True);
+            Assert.That(config.materialPreset, Is.EqualTo(PixelAnimationMaterialPreset.HighContrast));
+            Assert.That(config.outputMode, Is.EqualTo(PixelAnimationOutputMode.Both));
+            Assert.That(config.writeMetadataJson, Is.True);
+            Assert.That(config.applySpriteImportSettings, Is.False);
+            Assert.That(config.writeGifPreview, Is.True);
+            Assert.That(config.autoTrim, Is.True);
+            Assert.That(config.trimPadding, Is.EqualTo(3));
+            Assert.That(config.pixelSnap, Is.False);
+            Assert.That(config.snapModelToPixelGrid, Is.True);
+            Assert.That(config.applyOutline, Is.True);
+            Assert.That(config.outlineColor, Is.EqualTo(Color.red));
+            Assert.That(config.outlineThickness, Is.EqualTo(2));
+            Assert.That(config.outlineMode, Is.EqualTo(PixelOutlineMode.Both));
+            Assert.That(config.enhanceEdges, Is.True);
+            Assert.That(config.edgeColor, Is.EqualTo(Color.blue));
+            Assert.That(config.edgeThreshold, Is.EqualTo(0.6f));
+            Assert.That(config.removeAntiAliasing, Is.True);
+            Assert.That(config.alphaThreshold, Is.EqualTo(0.7f));
+            Assert.That(config.shadeSteps, Is.EqualTo(24));
+            Assert.That(config.useFixedShadeColors, Is.True);
+            Assert.That(config.shadowColor, Is.EqualTo(Color.black));
+            Assert.That(config.midColor, Is.EqualTo(Color.gray));
+            Assert.That(config.highlightColor, Is.EqualTo(Color.white));
+            Assert.That(config.reduceColors, Is.True);
+            Assert.That(config.colorCountPreset, Is.EqualTo(PixelColorCountPreset.Custom));
+            Assert.That(config.palettePreset, Is.EqualTo(PixelPalettePreset.Custom));
+            Assert.That(config.maxColors, Is.EqualTo(7));
+            Assert.That(config.useDithering, Is.True);
+            Assert.That(config.customPalette, Has.Length.EqualTo(2));
+            Assert.That(config.motionDecimation, Is.EqualTo(3));
+            Assert.That(config.frameHold, Is.EqualTo(4));
         }
 
         [Test]

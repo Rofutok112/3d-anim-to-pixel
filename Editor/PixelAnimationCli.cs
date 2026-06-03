@@ -139,6 +139,70 @@ namespace AnimToPixel.Editor
             };
         }
 
+        public static PixelAnimationCliConfig CreateConfig(PixelAnimationExportSettings settings)
+        {
+            if (settings == null)
+            {
+                throw new ArgumentNullException(nameof(settings));
+            }
+
+            return new PixelAnimationCliConfig
+            {
+                prefabPath = settings.Prefab == null ? string.Empty : AssetDatabase.GetAssetPath(settings.Prefab),
+                animationClipPath = settings.AnimationClip == null ? string.Empty : AssetDatabase.GetAssetPath(settings.AnimationClip),
+                outputFolderPath = settings.OutputFolderPath,
+                resolutionX = settings.Resolution.x,
+                resolutionY = settings.Resolution.y,
+                fps = settings.Fps,
+                useFullClipLength = settings.UseFullClipLength,
+                durationSeconds = settings.DurationSeconds,
+                useFrameRange = settings.UseFrameRange,
+                startFrame = settings.StartFrame,
+                endFrame = settings.EndFrame,
+                backgroundColor = settings.BackgroundColor,
+                transparentBackground = settings.TransparentBackground,
+                cameraYaw = settings.CameraYaw,
+                cameraPitch = settings.CameraPitch,
+                cameraZoom = settings.CameraZoom,
+                directionYaws = settings.DirectionYaws ?? Array.Empty<float>(),
+                useOrthographicCamera = settings.UseOrthographicCamera,
+                useLighting = settings.UseLighting,
+                includeShadows = settings.IncludeShadows,
+                forceUnlitMaterials = settings.ForceUnlitMaterials,
+                materialPreset = settings.MaterialPreset,
+                outputMode = settings.OutputMode,
+                writeMetadataJson = settings.WriteMetadataJson,
+                applySpriteImportSettings = settings.ApplySpriteImportSettings,
+                writeGifPreview = settings.WriteGifPreview,
+                autoTrim = settings.AutoTrim,
+                trimPadding = settings.TrimPadding,
+                pixelSnap = settings.PixelSnap,
+                snapModelToPixelGrid = settings.SnapModelToPixelGrid,
+                applyOutline = settings.ApplyOutline,
+                outlineColor = settings.OutlineColor,
+                outlineThickness = settings.OutlineThickness,
+                outlineMode = settings.OutlineMode,
+                enhanceEdges = settings.EnhanceEdges,
+                edgeColor = settings.EdgeColor,
+                edgeThreshold = settings.EdgeThreshold,
+                removeAntiAliasing = settings.RemoveAntiAliasing,
+                alphaThreshold = settings.AlphaThreshold,
+                shadeSteps = settings.ShadeSteps,
+                useFixedShadeColors = settings.UseFixedShadeColors,
+                shadowColor = settings.ShadowColor,
+                midColor = settings.MidColor,
+                highlightColor = settings.HighlightColor,
+                reduceColors = settings.ReduceColors,
+                colorCountPreset = settings.ColorCountPreset,
+                palettePreset = settings.PalettePreset,
+                maxColors = settings.MaxColors,
+                useDithering = settings.UseDithering,
+                customPalette = settings.CustomPalette ?? Array.Empty<Color>(),
+                motionDecimation = settings.MotionDecimation,
+                frameHold = settings.FrameHold
+            };
+        }
+
         private static T LoadRequiredAsset<T>(string path, string fieldName) where T : UnityEngine.Object
         {
             if (string.IsNullOrWhiteSpace(path))
