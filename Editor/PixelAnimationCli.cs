@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 
@@ -64,13 +65,35 @@ namespace AnimToPixel.Editor
                 throw new FileNotFoundException("Config file was not found.", configPath);
             }
 
-            var config = JsonUtility.FromJson<PixelAnimationCliConfig>(File.ReadAllText(configPath));
+            var json = File.ReadAllText(configPath);
+            var config = ParseConfigJson(json);
             if (config == null)
             {
                 throw new ArgumentException($"Config file could not be parsed: {configPath}", nameof(configPath));
             }
 
             return PixelAnimationExporter.Export(CreateSettings(config));
+        }
+
+        public static PixelAnimationCliConfig ParseConfigJson(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                throw new ArgumentException("Config JSON is required.", nameof(json));
+            }
+
+            var config = JsonUtility.FromJson<PixelAnimationCliConfig>(json);
+            if (config == null)
+            {
+                return null;
+            }
+
+            ApplyStringEnum(json, "materialPreset", ref config.materialPreset);
+            ApplyStringEnum(json, "outputMode", ref config.outputMode);
+            ApplyStringEnum(json, "outlineMode", ref config.outlineMode);
+            ApplyStringEnum(json, "colorCountPreset", ref config.colorCountPreset);
+            ApplyStringEnum(json, "palettePreset", ref config.palettePreset);
+            return config;
         }
 
         public static PixelAnimationExportSettings CreateSettings(PixelAnimationCliConfig config)
@@ -228,6 +251,37 @@ namespace AnimToPixel.Editor
         private static int UsePositive(int value, int fallback)
         {
             return value > 0 ? value : fallback;
+        }
+
+        private static void ApplyStringEnum<TEnum>(string json, string fieldName, ref TEnum target) where TEnum : struct, Enum
+        {
+            if (!TryGetStringField(json, fieldName, out var value))
+            {
+                return;
+            }
+
+            if (!Enum.TryParse(value, true, out TEnum parsed))
+            {
+                throw new ArgumentException($"{fieldName} has unknown value '{value}'. Expected one of: {string.Join(", ", Enum.GetNames(typeof(TEnum)))}.");
+            }
+
+            target = parsed;
+        }
+
+        private static bool TryGetStringField(string json, string fieldName, out string value)
+        {
+            var match = Regex.Match(
+                json,
+                $"\"{Regex.Escape(fieldName)}\"\\s*:\\s*\"(?<value>(?:\\\\.|[^\"\\\\])*)\"",
+                RegexOptions.CultureInvariant);
+            if (!match.Success)
+            {
+                value = string.Empty;
+                return false;
+            }
+
+            value = Regex.Unescape(match.Groups["value"].Value);
+            return true;
         }
 
         private static void WriteResult(PixelAnimationExportResult result, string path)

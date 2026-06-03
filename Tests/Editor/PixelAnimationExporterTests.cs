@@ -818,6 +818,35 @@ namespace AnimToPixel.Editor.Tests
         }
 
         [Test]
+        public void Cli_ParseConfigJson_AcceptsStringEnumValues()
+        {
+            var json = @"{
+                ""materialPreset"": ""HighContrast"",
+                ""outputMode"": ""Both"",
+                ""outlineMode"": ""Inside"",
+                ""colorCountPreset"": ""Custom"",
+                ""palettePreset"": ""Pico8""
+            }";
+
+            var config = PixelAnimationCli.ParseConfigJson(json);
+
+            Assert.That(config.materialPreset, Is.EqualTo(PixelAnimationMaterialPreset.HighContrast));
+            Assert.That(config.outputMode, Is.EqualTo(PixelAnimationOutputMode.Both));
+            Assert.That(config.outlineMode, Is.EqualTo(PixelOutlineMode.Inside));
+            Assert.That(config.colorCountPreset, Is.EqualTo(PixelColorCountPreset.Custom));
+            Assert.That(config.palettePreset, Is.EqualTo(PixelPalettePreset.Pico8));
+        }
+
+        [Test]
+        public void Cli_ParseConfigJson_RejectsUnknownStringEnumValue()
+        {
+            var exception = Assert.Throws<ArgumentException>(() => PixelAnimationCli.ParseConfigJson(@"{ ""outputMode"": ""Movie"" }"));
+
+            Assert.That(exception.Message, Does.Contain("outputMode"));
+            Assert.That(exception.Message, Does.Contain("PngSequence"));
+        }
+
+        [Test]
         public void Cli_ExportFromConfig_WritesExpectedFiles()
         {
             var prefab = CreateCubePrefab();
@@ -842,6 +871,34 @@ namespace AnimToPixel.Editor.Tests
 
             Assert.That(result.GeneratedFiles, Has.Count.EqualTo(2));
             Assert.That(File.Exists($"{TempRoot}/CliExports/PixelTestCube/CliExportMove/CliExportMove_0000.png"), Is.True);
+        }
+
+        [Test]
+        public void Cli_ExportFromConfig_AcceptsStringEnumOutputMode()
+        {
+            var prefab = CreateCubePrefab();
+            var clip = CreateAnimationClip();
+            AssetDatabase.CreateAsset(clip, $"{TempRoot}/CliStringEnumMove.anim");
+            var configPath = $"{TempRoot}/cli-string-enum-config.json";
+            File.WriteAllText(configPath, $@"{{
+                ""prefabPath"": ""{AssetDatabase.GetAssetPath(prefab)}"",
+                ""animationClipPath"": ""{TempRoot}/CliStringEnumMove.anim"",
+                ""outputFolderPath"": ""{TempRoot}/CliStringEnumExports"",
+                ""resolutionX"": 32,
+                ""resolutionY"": 32,
+                ""fps"": 2,
+                ""useFullClipLength"": false,
+                ""durationSeconds"": 1.0,
+                ""outputMode"": ""Both"",
+                ""materialPreset"": ""Flat"",
+                ""applySpriteImportSettings"": false
+            }}");
+
+            var result = PixelAnimationCli.ExportFromConfig(configPath);
+
+            Assert.That(result.GeneratedFiles, Has.Count.EqualTo(3));
+            Assert.That(result.GeneratedFiles, Has.Some.Matches<string>(path => path.EndsWith("_sheet.png")));
+            Assert.That(File.Exists($"{TempRoot}/CliStringEnumExports/PixelTestCube/CliStringEnumMove/CliStringEnumMove_sheet.png"), Is.True);
         }
 
         [Test]

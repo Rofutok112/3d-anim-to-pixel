@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- Allow CLI JSON enum fields to use documented string names such as `"Both"` and `"Pico8"`.
+- Keep numeric enum values supported for existing configs.
+
 ## 0.1.1
 
 - Expose all export settings through the CLI JSON config.
