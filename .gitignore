@@ -1,0 +1,27 @@
+# OS and editor
+.DS_Store
+Thumbs.db
+.vs/
+.vscode/
+.idea/
+
+# Unity generated folders
+Library/
+Temp/
+Obj/
+Build/
+Builds/
+Logs/
+UserSettings/
+
+# Unity generated solution files
+*.csproj
+*.sln
+*.user
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
